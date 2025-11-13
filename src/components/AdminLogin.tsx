@@ -1,6 +1,6 @@
 // src/components/AdminLogin.tsx
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock } from 'lucide-react';
 import { useNavigate } from 'react-router'; // 🔑 Import useNavigate
@@ -15,6 +15,7 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate(); // 🔑 Initialize hook
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

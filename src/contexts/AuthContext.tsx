@@ -4,7 +4,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 import axios from 'axios';
 
 // 🛑 IMPORTANT: Define the base URL for your Express backend Auth routes
-const API_BASE_URL = 'http://localhost:5000/api/auth'; 
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/auth`; 
 
 interface User {
   id: string;
