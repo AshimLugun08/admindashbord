@@ -12,8 +12,6 @@ interface Order {
       price: number;
     };
     quantity: number;
-    size?: string;
-    color?: string;
   }>;
   totalAmount: number;
   status: string;
@@ -41,15 +39,14 @@ export default function OrdersManagement() {
     fetchOrders();
   }, [token]);
 
+  // -------------------------------------------------------
+  // ✅ Fetch Orders (Admin)
+  // -------------------------------------------------------
   const fetchOrders = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/orders`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
       setOrders(data);
     } catch (error) {
@@ -59,231 +56,193 @@ export default function OrdersManagement() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-slate-100 text-slate-800';
+  // -------------------------------------------------------
+  // ✅ Update Status (Admin)
+  // -------------------------------------------------------
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/orders/${orderId}/status`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update in UI immediately
+        setOrders(prev =>
+          prev.map(o => (o._id === orderId ? data.order : o))
+        );
+        setSelectedOrder(data.order);
+        alert("Order status updated!");
+      }
+    } catch (error) {
+      console.error("Status update failed:", error);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  // Helpers
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return "bg-yellow-100 text-yellow-800";
+      case 'shipped': return "bg-purple-100 text-purple-800";
+      case 'delivered': return "bg-green-100 text-green-800";
+      case 'cancelled': return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
   };
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleString("en-US", { hour12: true });
 
   if (loading) return <div className="text-center py-12">Loading orders...</div>;
 
   return (
     <div>
+
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Orders Management</h2>
-        <div className="text-sm text-slate-600">Total Orders: {orders.length}</div>
+        <h2 className="text-2xl font-bold">Orders Management</h2>
+        <p className="text-sm text-slate-600">Total Orders: {orders.length}</p>
       </div>
 
-      {/* ORDERS TABLE */}
+      {/* TABLE */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3">Order ID</th>
+              <th className="p-3">Customer</th>
+              <th className="p-3">Date</th>
+              <th className="p-3">Total</th>
+              <th className="p-3">Status</th>
+              <th className="p-3"></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {orders.map(order => (
+              <tr key={order._id} className="border-b hover:bg-gray-50">
+                <td className="p-3">{order._id.slice(-8).toUpperCase()}</td>
+
+                <td className="p-3">
+                  {order.user?.name}
+                  <br />
+                  <span className="text-xs text-gray-500">
+                    {order.user?.email}
+                  </span>
+                </td>
+
+                <td className="p-3">{formatDate(order.createdAt)}</td>
+                <td className="p-3 font-semibold">₹{order.totalAmount}</td>
+
+                <td className="p-3">
+                  <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(order.status)}`}>
+                    {order.status}
+                  </span>
+                </td>
+
+                <td className="p-3">
+                  <button
+                    onClick={() => setSelectedOrder(order)}
+                    className="text-blue-600 underline"
+                  >
+                    View
+                  </button>
+                </td>
+
               </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-200">
-              {orders.map((order) => (
-                <tr key={order._id} className="hover:bg-slate-50 transition">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <Package className="w-4 h-4 text-slate-400 mr-2" />
-                      <span className="text-sm font-medium text-slate-900">
-                        {order._id.slice(-8).toUpperCase()}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <User className="w-4 h-4 text-slate-400 mr-2" />
-                      <div>
-                        <div className="text-sm font-medium text-slate-900">{order.user?.name}</div>
-                        <div className="text-xs text-slate-500">{order.user?.email}</div>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-slate-600">
-                      <Calendar className="w-4 h-4 text-slate-400 mr-2" />
-                      {formatDate(order.createdAt)}
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm font-semibold text-slate-900">
-                      <DollarSign className="w-4 h-4 text-slate-400" />
-                      {order.totalAmount.toFixed(2)}
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => setSelectedOrder(order)}
-                      className="text-slate-900 hover:text-slate-700 font-medium"
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* ---------- MODAL: ORDER DETAILS ---------- */}
+      {/* -------------------------------------------------------
+           MODAL
+      ------------------------------------------------------- */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            
-            {/* HEADER */}
-            <div className="p-6 border-b border-slate-200 flex justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900">Order Details</h3>
-                <p className="text-sm text-slate-600 mt-1">
-                  Order ID: {selectedOrder._id.slice(-8).toUpperCase()}
-                </p>
-              </div>
-              <button onClick={() => setSelectedOrder(null)} className="text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-auto shadow-lg">
+
+            {/* Modal Header */}
+            <div className="flex justify-between p-5 border-b">
+              <h3 className="text-xl font-bold">Order Details</h3>
+              <button onClick={() => setSelectedOrder(null)}>
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-5 space-y-6">
 
-              {/* CUSTOMER INFO */}
+              {/* Shipping Address */}
               <div>
-                <h4 className="font-semibold text-slate-900 mb-3">Customer Information</h4>
-                <div className="bg-slate-50 p-4 rounded-lg space-y-2 text-sm">
-                  <p><b>Name:</b> {selectedOrder.user?.name}</p>
-                  <p><b>Email:</b> {selectedOrder.user?.email}</p>
-                </div>
-              </div>
-
-              {/* SHIPPING ADDRESS - FIXED */}
-              <div>
-                <h4 className="font-semibold text-slate-900 mb-3">Shipping Address</h4>
-
-                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-700">
-
-                  <p><b>{selectedOrder.shippingAddress?.fullName}</b></p>
-
-                  <p>{selectedOrder.shippingAddress?.addressLine1}</p>
-
-                  {selectedOrder.shippingAddress?.addressLine2 && (
-                    <p>{selectedOrder.shippingAddress.addressLine2}</p>
-                  )}
-
+                <h4 className="font-semibold">Shipping Address</h4>
+                <div className="bg-gray-50 p-4 rounded text-sm">
+                  <p><b>{selectedOrder.shippingAddress.fullName}</b></p>
+                  <p>{selectedOrder.shippingAddress.addressLine1}</p>
                   <p>
-                    {selectedOrder.shippingAddress?.city},{" "}
-                    {selectedOrder.shippingAddress?.state} -{" "}
-                    {selectedOrder.shippingAddress?.pincode}
+                    {selectedOrder.shippingAddress.city},{" "}
+                    {selectedOrder.shippingAddress.state} -{" "}
+                    {selectedOrder.shippingAddress.pincode}
                   </p>
-
-                  <p>Phone: {selectedOrder.shippingAddress?.phone}</p>
-
-                  {selectedOrder.shippingAddress?.landmark && (
-                    <p>Landmark: {selectedOrder.shippingAddress.landmark}</p>
-                  )}
-
+                  <p>Phone: {selectedOrder.shippingAddress.phone}</p>
                 </div>
               </div>
 
-              {/* ORDER ITEMS */}
+              {/* Products */}
               <div>
-                <h4 className="font-semibold text-slate-900 mb-3">Order Items</h4>
-                <div className="space-y-3">
-                  {selectedOrder.products.map((item, index) => (
-                    <div key={index} className="flex gap-4 bg-slate-50 p-4 rounded-lg">
-                      <div className="w-20 h-20 bg-slate-200 rounded-lg flex-shrink-0">
-                        {item.product?.images?.[0]?.url ? (
-                          <img
-                            src={item.product.images[0].url}
-                            alt={item.product.name}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-400">
-                            <Package className="w-6 h-6" />
-                          </div>
-                        )}
-                      </div>
+                <h4 className="font-semibold">Products</h4>
+                {selectedOrder.products.map((item, i) => (
+                  <div key={i} className="flex gap-4 bg-gray-50 p-4 rounded">
+                    <img
+                      src={
+                        item.product?.images?.[0]?.url ||
+                        "/placeholder.jpg"
+                      }
+                      className="w-20 h-20 rounded object-cover"
+                    />
 
-                      <div className="flex-1">
-                        <h5 className="font-medium text-slate-900">{item.product.name}</h5>
-
-                        <div className="text-sm text-slate-600 mt-1">
-                          Qty: {item.quantity}
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="font-semibold text-slate-900">
-                          ₹{(item.product.price * item.quantity).toFixed(2)}
-                        </p>
-                        <p className="text-xs text-slate-600">₹{item.product.price} each</p>
-                      </div>
+                    <div>
+                      <p className="font-bold">{item.product.name}</p>
+                      <p className="text-sm">Qty: {item.quantity}</p>
+                      <p className="text-sm">₹{item.product.price}</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
 
-              {/* TOTAL */}
-              <div className="border-t border-slate-200 pt-4">
-                <div className="flex justify-between items-center text-lg font-bold">
-                  <span>Total Amount:</span>
-                  <span className="text-slate-900">₹{selectedOrder.totalAmount.toFixed(2)}</span>
-                </div>
-
-                {selectedOrder.paymentId && (
-                  <p className="text-sm text-slate-600 mt-2">
-                    Payment ID: {selectedOrder.paymentId}
-                  </p>
-                )}
+              {/* Status Update */}
+              <div>
+                <h4 className="font-semibold">Update Status</h4>
+                <select
+                  value={selectedOrder.status}
+                  onChange={(e) =>
+                    updateOrderStatus(selectedOrder._id, e.target.value)
+                  }
+                  className="border p-2 rounded"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
+
+              {/* Total */}
+              <p className="text-lg font-bold">
+                Total: ₹{selectedOrder.totalAmount}
+              </p>
 
             </div>
+
           </div>
         </div>
       )}
